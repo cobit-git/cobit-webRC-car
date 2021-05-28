@@ -1,0 +1,171 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>co:bit car Monitor </title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.4/socket.io.js" integrity="sha512-aMGMvNYu8Ue4G+fHa359jcPb1u+ytAF+P2SCb+PxrjCdO3n3ZTxJ30zuH39rimUggmTwmh2u7wvQsDTHESnmfQ==" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js" integrity="sha512-uto9mlQzrs59VwILcLiRYeLKPPbS/bT71da/OEBYEwcdNUk8jYIy+D176RYoop1Da+f9mvkYrmj5MCLZWEtQuA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    
+    
+   
+    <script type="text/javascript" charset="utf-8">
+        $(document).ready(function() {
+
+            var state = {
+                'angle': 0,
+                'throttle': 0,
+            }
+         
+            var socket = io();
+
+            var updateUI = function() {
+
+                $("#throttleInput").val(state.throttle);
+                $("#angleInput").val(state.angle)
+
+                var throttlePercent = Math.round(Math.abs(state.throttle) * 100) + '%';
+                var steeringPercent = Math.round(Math.abs(state.angle) * 100) + '%';
+                var throttleRounded = state.throttle.toFixed(2)
+                var steeringRounded = state.angle.toFixed(2)
+
+                $('#throttle_label').html(throttleRounded);
+                $('#steering_label').html(steeringRounded);
+
+                if(state.throttle < 0) {
+                    $('#throttle-bar-backward').css('width', throttlePercent).html(throttleRounded)
+                    $('#throttle-bar-forward').css('width', '0%').html('')
+                }
+                else if (state.throttle > 0) {
+                    $('#throttle-bar-backward').css('width', '0%').html('')
+                    $('#throttle-bar-forward').css('width', throttlePercent).html(throttleRounded)
+                }
+                else {
+                    $('#throttle-bar-forward').css('width', '0%').html('')
+                    $('#throttle-bar-backward').css('width', '0%').html('')
+                }
+
+                if(state.angle < 0) {
+                    $('#angle-bar-backward').css('width', steeringPercent).html(steeringRounded)
+                    $('#angle-bar-forward').css('width', '0%').html('')
+                }
+                else if (state.angle > 0) {
+                    $('#angle-bar-backward').css('width', '0%').html('')
+                    $('#angle-bar-forward').css('width', steeringPercent).html(steeringRounded)
+                }
+                else {
+                    $('#angle-bar-forward').css('width', '0%').html('')
+                    $('#angle-bar-backward').css('width', '0%').html('')
+                }
+
+            };
+
+
+            var postDrive = function() {
+                socket.emit('my_event', JSON.stringify(state));
+                updateUI();
+
+            };
+
+            var throttleUp = function(){
+                state.throttle = Math.min(state.throttle + .05, 1);
+                postDrive();
+            };
+
+            var throttleDown = function(){
+                state.throttle = Math.max(state.throttle - .05, -1);
+                postDrive();
+            };
+
+            var angleLeft = function(){
+                state.angle = Math.max(state.angle - .1, -1);
+                postDrive();
+            };
+
+            var angleRight = function(){
+                state.angle = Math.min(state.angle + .1, 1);
+                postDrive();
+            };
+
+            var brake = function(i){
+                console.log('post drive: ' + i);
+                state.angle = 0;
+                state.throttle = 0;
+                postDrive();
+
+                i++;
+                if (i < 5) {
+                    setTimeout(function () {
+                        console.log('calling brake:' + i);
+                        brake(i);
+                    }, 500)
+                };
+                updateUI();
+            };
+
+            $(document).keydown(function(e) {
+                if(e.which == 32) { 
+                    console.log("brake");
+                    brake();
+                }
+                if(e.which == 38) { 
+                    console.log("throttle up");
+                    throttleUp();
+                }  
+                if(e.which == 40) { 
+                    console.log("throttle down");
+                    throttleDown();
+                } 
+                if(e.which == 37) { 
+                    console.log("turn left");
+                    angleLeft();
+                }
+                if(e.which == 39) { 
+                    console.log("turn right"); 
+                    angleRight();
+                } 
+            });  
+        });
+    </script>
+</head>
+<body></body>
+   <div class="col-lg-8  offset-lg-2">
+        <h3 class="mt-5">co:bit car Camera View</h3>
+        <img src="{{ url_for('video_feed') }}" >
+    </div>
+    <div class="col-xs-4 col-sm-2 col-md-2">
+        <div id="control-bars">
+        <label class="group-label">Angle &amp; Throttle</label>
+        <div>
+            <span class="glyphicon glyphicon-resize-horizontal pull-left"></span>
+            <div class="progress negative">
+            <div id="angle-bar-backward" class="progress-bar progress-bar-warning pull-right" role="progressbar" style="width: 0%;">
+            </div>
+            </div>
+            
+            <div class="progress positive">
+            <div id="angle-bar-forward" class="progress-bar progress-bar-info" role="progressbar" style="width: 0%;">
+            </div>
+            </div>
+        </div>
+        
+        <div>
+            <span class="glyphicon glyphicon-resize-vertical pull-left"></span>
+            <div class="progress negative">
+            <div id="throttle-bar-backward" class="progress-bar progress-bar-danger pull-right" role="progressbar" style="width: 0%;">
+            </div>
+            </div>
+            
+            <div class="progress positive">
+            <div id="throttle-bar-forward" class="progress-bar progress-bar-success" role="progressbar" style="width: 0%;">
+            </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    </div>
+</body>
+</html>
